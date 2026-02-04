@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,8 +26,22 @@ const queryClient = new QueryClient();
 // Admin-only route wrapper
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, isAdmin } = useAuth();
+  const [adminChecked, setAdminChecked] = useState(false);
 
-  if (loading) {
+  // Wait a moment for admin status to be verified after login
+  useEffect(() => {
+    if (!loading && user) {
+      // Give the auth hook time to check admin role
+      const timer = setTimeout(() => {
+        setAdminChecked(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (!loading && !user) {
+      setAdminChecked(true);
+    }
+  }, [loading, user]);
+
+  if (loading || (!adminChecked && user)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
