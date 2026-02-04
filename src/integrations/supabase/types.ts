@@ -93,6 +93,7 @@ export type Database = {
           tags: Json | null
           title: string
           url: string | null
+          video_url: string | null
         }
         Insert: {
           content_md?: string | null
@@ -107,6 +108,7 @@ export type Database = {
           tags?: Json | null
           title: string
           url?: string | null
+          video_url?: string | null
         }
         Update: {
           content_md?: string | null
@@ -121,6 +123,7 @@ export type Database = {
           tags?: Json | null
           title?: string
           url?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {

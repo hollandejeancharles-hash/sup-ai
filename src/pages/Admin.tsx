@@ -1,261 +1,409 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, Send, Loader2, FileText, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Send,
+  Loader2,
+  FileText,
+  Trash2,
+  Edit,
+  Eye,
+  EyeOff,
+  Calendar,
+  ChevronRight,
+  GripVertical,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
-import { parseRawInput, ParsedItem } from "@/lib/digestParser";
-import { BreakingCard } from "@/components/cards/BreakingCard";
-import { ArticleCard } from "@/components/cards/ArticleCard";
+import {
+  useDigests,
+  useDigestItems,
+  useCreateDigest,
+  useUpdateDigest,
+  useDeleteDigest,
+  usePublishDigest,
+  useUnpublishDigest,
+  useCreateItem,
+  useUpdateItem,
+  useDeleteItem,
+  type Digest,
+  type Item,
+} from "@/hooks/useDigests";
+import { ItemForm } from "@/components/admin/ItemForm";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [title, setTitle] = useState("");
-  const [rawInput, setRawInput] = useState("");
-  const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
-  const [isPreview, setIsPreview] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [selectedDigest, setSelectedDigest] = useState<Digest | null>(null);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [newDigestDate, setNewDigestDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [showNewDigest, setShowNewDigest] = useState(false);
 
-  // Redirect if not admin (for now just show warning)
-  // In production, this would check against the database
+  // Queries
+  const { data: digests, isLoading: loadingDigests } = useDigests();
+  const { data: items, isLoading: loadingItems } = useDigestItems(
+    selectedDigest?.id
+  );
 
-  const handlePreview = () => {
-    if (!rawInput.trim()) {
-      toast.error("Ajoute du contenu d'abord");
-      return;
-    }
+  // Mutations
+  const createDigest = useCreateDigest();
+  const updateDigest = useUpdateDigest();
+  const deleteDigest = useDeleteDigest();
+  const publishDigest = usePublishDigest();
+  const unpublishDigest = useUnpublishDigest();
+  const createItem = useCreateItem();
+  const updateItem = useUpdateItem();
+  const deleteItem = useDeleteItem();
 
-    const items = parseRawInput(rawInput);
-    setParsedItems(items);
-    setIsPreview(true);
-    toast.success(`${items.length} items détectés`);
+  const handleCreateDigest = async () => {
+    if (!newDigestDate) return;
+
+    await createDigest.mutateAsync({
+      date: newDigestDate,
+      title: `Digest du ${format(new Date(newDigestDate), "d MMMM yyyy", { locale: fr })}`,
+    });
+
+    setShowNewDigest(false);
+    setNewDigestDate(new Date().toISOString().split("T")[0]);
   };
 
-  const handlePublish = async () => {
-    if (parsedItems.length === 0) {
-      toast.error("Fais un preview d'abord");
-      return;
+  const handleSaveItem = async (data: any) => {
+    if (data.id) {
+      await updateItem.mutateAsync(data);
+    } else {
+      await createItem.mutateAsync(data);
     }
-
-    setLoading(true);
-    // Simulate publishing - in production this would hit the database
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setLoading(false);
-    toast.success("Digest publié !");
-    
-    // Reset form
-    setRawInput("");
-    setParsedItems([]);
-    setIsPreview(false);
   };
 
-  const removeItem = (index: number) => {
-    setParsedItems(parsedItems.filter((_, i) => i !== index));
+  const handleDeleteItem = async (item: Item) => {
+    if (!confirm("Supprimer cet article ?")) return;
+    await deleteItem.mutateAsync({ id: item.id, digestId: item.digest_id });
+  };
+
+  const handleDeleteDigest = async (digest: Digest) => {
+    if (!confirm("Supprimer ce digest et tous ses articles ?")) return;
+    await deleteDigest.mutateAsync(digest.id);
+    if (selectedDigest?.id === digest.id) {
+      setSelectedDigest(null);
+    }
+  };
+
+  const handleTogglePublish = async (digest: Digest) => {
+    if (digest.published_at) {
+      await unpublishDigest.mutateAsync(digest.id);
+    } else {
+      await publishDigest.mutateAsync(digest.id);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="container px-4 pt-safe border-b border-hairline">
-        <div className="flex items-center justify-between py-4">
-          <button
-            onClick={() => navigate("/home")}
-            className="flex items-center gap-2 text-muted-foreground touch-target"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span className="text-body">Back</span>
-          </button>
-          <h1 className="text-body font-semibold text-foreground">Admin</h1>
-          <div className="w-16" />
+      <div className="sticky top-0 z-20 bg-background border-b border-hairline">
+        <div className="container px-4">
+          <div className="flex items-center justify-between py-4">
+            <button
+              onClick={() => navigate("/home")}
+              className="flex items-center gap-2 text-muted-foreground touch-target"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="text-body">Back</span>
+            </button>
+            <h1 className="text-body font-semibold text-foreground">Admin</h1>
+            <div className="w-16" />
+          </div>
         </div>
       </div>
 
       <div className="container px-4 py-6">
-        <Tabs defaultValue="create" className="w-full">
+        <Tabs defaultValue="digests" className="w-full">
           <TabsList className="w-full mb-6">
-            <TabsTrigger value="create" className="flex-1">Create Digest</TabsTrigger>
-            <TabsTrigger value="manage" className="flex-1">Manage</TabsTrigger>
+            <TabsTrigger value="digests" className="flex-1">
+              Digests
+            </TabsTrigger>
+            <TabsTrigger value="articles" className="flex-1" disabled={!selectedDigest}>
+              Articles {selectedDigest && `(${items?.length || 0})`}
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="create" className="space-y-6">
-            {!isPreview ? (
-              <>
-                {/* Date Input */}
-                <div>
-                  <label className="text-meta font-medium text-foreground block mb-2">
-                    Date
-                  </label>
+          {/* Digests Tab */}
+          <TabsContent value="digests" className="space-y-4">
+            {/* Create New Digest */}
+            {showNewDigest ? (
+              <div className="bg-card rounded-card shadow-card p-4 space-y-3">
+                <div className="flex items-center gap-3">
                   <Input
                     type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="h-12 rounded-xl"
+                    value={newDigestDate}
+                    onChange={(e) => setNewDigestDate(e.target.value)}
+                    className="flex-1 h-12 rounded-xl"
                   />
-                </div>
-
-                {/* Title Input */}
-                <div>
-                  <label className="text-meta font-medium text-foreground block mb-2">
-                    Title (optional)
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Daily AI Digest"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="h-12 rounded-xl"
-                  />
-                </div>
-
-                {/* Raw Input */}
-                <div>
-                  <label className="text-meta font-medium text-foreground block mb-2">
-                    Raw Input
-                  </label>
-                  <p className="text-small text-muted-foreground mb-2">
-                    Colle du JSON, Markdown ou texte brut. L'app formate automatiquement.
-                  </p>
-                  <Textarea
-                    placeholder={`Exemples de formats acceptés:
-
-JSON: {"items": [...]}
-
-Markdown:
-## Section
-- Item 1 https://example.com
-- Item 2
-
-Texte brut:
-• OpenAI announces GPT-5
-  https://techcrunch.com/gpt5
-  
-• EU passes new AI regulations
-  https://reuters.com/ai-act`}
-                    value={rawInput}
-                    onChange={(e) => setRawInput(e.target.value)}
-                    className="min-h-[300px] rounded-xl font-mono text-meta"
-                  />
-                </div>
-
-                {/* Preview Button */}
-                <Button
-                  onClick={handlePreview}
-                  size="lg"
-                  className="w-full rounded-full h-12"
-                  disabled={!rawInput.trim()}
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview
-                </Button>
-              </>
-            ) : (
-              <>
-                {/* Preview Mode */}
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-h2 text-foreground">Preview</h2>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsPreview(false)}
+                    onClick={handleCreateDigest}
+                    disabled={createDigest.isPending}
+                    className="h-12 rounded-xl"
                   >
-                    Edit
+                    {createDigest.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Créer"
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowNewDigest(false)}
+                    className="h-12"
+                  >
+                    Annuler
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <Button
+                onClick={() => setShowNewDigest(true)}
+                variant="outline"
+                className="w-full h-14 rounded-xl border-dashed border-2"
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Nouveau Digest
+              </Button>
+            )}
 
-                {/* Breaking Preview */}
-                <section className="mb-6">
-                  <h3 className="text-body font-semibold text-muted-foreground mb-3">
-                    Breaking ({Math.min(3, parsedItems.length)})
-                  </h3>
-                  <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
-                    {parsedItems.slice(0, 3).map((item, index) => (
-                      <div key={index} className="relative">
-                        <BreakingCard
-                          id={`preview-${index}`}
-                          title={item.title}
-                          source={item.source}
-                          imageUrl={item.image_url}
-                          tags={item.tags}
-                          readTime={item.read_time_minutes}
-                        />
-                        <button
-                          onClick={() => removeItem(index)}
-                          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-destructive flex items-center justify-center"
-                        >
-                          <Trash2 className="h-4 w-4 text-white" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Recommendations Preview */}
-                {parsedItems.length > 3 && (
-                  <section className="mb-6">
-                    <h3 className="text-body font-semibold text-muted-foreground mb-3">
-                      Recommendations ({parsedItems.length - 3})
-                    </h3>
-                    <div className="space-y-3">
-                      {parsedItems.slice(3).map((item, index) => (
-                        <div key={index + 3} className="relative">
-                          <ArticleCard
-                            id={`preview-${index + 3}`}
-                            title={item.title}
-                            source={item.source}
-                            snippet={item.snippet}
-                            imageUrl={item.image_url}
-                            readTime={item.read_time_minutes}
+            {/* Digests List */}
+            {loadingDigests ? (
+              <div className="py-12 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+              </div>
+            ) : digests?.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-h2 text-foreground mb-2">Aucun digest</h2>
+                <p className="text-body text-muted-foreground">
+                  Crée ton premier digest pour commencer.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {digests?.map((digest) => (
+                  <div
+                    key={digest.id}
+                    className={cn(
+                      "bg-card rounded-card shadow-card p-4 transition-all",
+                      selectedDigest?.id === digest.id && "ring-2 ring-primary"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => setSelectedDigest(digest)}
+                        className="flex-1 text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "w-3 h-3 rounded-full",
+                              digest.published_at ? "bg-green-500" : "bg-muted"
+                            )}
                           />
-                          <button
-                            onClick={() => removeItem(index + 3)}
-                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-destructive flex items-center justify-center"
-                          >
-                            <Trash2 className="h-4 w-4 text-white" />
-                          </button>
+                          <div>
+                            <p className="text-body font-medium text-foreground">
+                              {format(new Date(digest.date), "EEEE d MMMM", {
+                                locale: fr,
+                              })}
+                            </p>
+                            <p className="text-small text-muted-foreground">
+                              {digest.published_at
+                                ? `Publié le ${format(new Date(digest.published_at), "d MMM à HH:mm", { locale: fr })}`
+                                : "Brouillon"}
+                            </p>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                      </button>
 
-                {/* Publish Button */}
-                <Button
-                  onClick={handlePublish}
-                  size="lg"
-                  className="w-full rounded-full h-12"
-                  disabled={loading || parsedItems.length === 0}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Publish Digest
-                    </>
-                  )}
-                </Button>
-              </>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTogglePublish(digest)}
+                          disabled={publishDigest.isPending || unpublishDigest.isPending}
+                          className="touch-target"
+                        >
+                          {digest.published_at ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteDigest(digest)}
+                          disabled={deleteDigest.isPending}
+                          className="touch-target text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </TabsContent>
 
-          <TabsContent value="manage">
-            <div className="py-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h2 className="text-h2 text-foreground mb-2">No digests yet</h2>
-              <p className="text-body text-muted-foreground">
-                Create your first digest to see it here.
-              </p>
-            </div>
+          {/* Articles Tab */}
+          <TabsContent value="articles" className="space-y-4">
+            {selectedDigest && (
+              <>
+                {/* Digest Info */}
+                <div className="bg-secondary/50 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-body font-medium text-foreground">
+                        {format(new Date(selectedDigest.date), "EEEE d MMMM yyyy", {
+                          locale: fr,
+                        })}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-small",
+                          selectedDigest.published_at
+                            ? "text-green-600"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {selectedDigest.published_at ? "✓ Publié" : "Brouillon"}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => handleTogglePublish(selectedDigest)}
+                      variant={selectedDigest.published_at ? "outline" : "default"}
+                      className="rounded-full"
+                      disabled={publishDigest.isPending || unpublishDigest.isPending}
+                    >
+                      {publishDigest.isPending || unpublishDigest.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : selectedDigest.published_at ? (
+                        <>
+                          <EyeOff className="mr-2 h-4 w-4" />
+                          Dépublier
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Publier
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Add Article Button */}
+                <Button
+                  onClick={() => {
+                    setEditingItem(null);
+                    setShowItemForm(true);
+                  }}
+                  variant="outline"
+                  className="w-full h-14 rounded-xl border-dashed border-2"
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  Ajouter un article
+                </Button>
+
+                {/* Articles List */}
+                {loadingItems ? (
+                  <div className="py-12 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                  </div>
+                ) : items?.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-body text-muted-foreground">
+                      Aucun article dans ce digest.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {items?.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="bg-card rounded-card shadow-card p-4 flex gap-3"
+                      >
+                        <div className="flex items-center text-muted-foreground">
+                          <GripVertical className="h-5 w-5" />
+                        </div>
+
+                        {/* Thumbnail */}
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-body font-medium text-foreground line-clamp-2">
+                            {item.title}
+                          </p>
+                          <p className="text-small text-muted-foreground">
+                            {item.source} • {item.read_time_minutes} min
+                            {(item as any).video_url && " • 🎬 Vidéo"}
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingItem(item);
+                              setShowItemForm(true);
+                            }}
+                            className="touch-target"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteItem(item)}
+                            className="touch-target text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Item Form Sheet */}
+                <ItemForm
+                  open={showItemForm}
+                  onOpenChange={setShowItemForm}
+                  item={editingItem}
+                  digestId={selectedDigest.id}
+                  onSave={handleSaveItem}
+                  nextRank={(items?.length || 0) + 1}
+                />
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>
