@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 // Pages
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Home from "./pages/Home";
 import Discover from "./pages/Discover";
 import Article from "./pages/Article";
@@ -18,7 +19,7 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Protected route wrapper
+// Protected route wrapper - requires login
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
@@ -37,8 +38,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Public route - redirects to home if already logged in
-function PublicRoute({ children }: { children: React.ReactNode }) {
+// Public route - redirects to home if already logged in (for landing/auth)
+function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -59,14 +60,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-      <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+      {/* Public only routes (redirect if logged in) */}
+      <Route path="/" element={<PublicOnlyRoute><Landing /></PublicOnlyRoute>} />
+      <Route path="/auth" element={<PublicOnlyRoute><Auth /></PublicOnlyRoute>} />
       
-      {/* Protected routes */}
-      <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-      <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-      <Route path="/article/:id" element={<ProtectedRoute><Article /></ProtectedRoute>} />
+      {/* Auth callback - always accessible */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      
+      {/* Public reading routes (accessible to everyone) */}
+      <Route path="/home" element={<Home />} />
+      <Route path="/discover" element={<Discover />} />
+      <Route path="/article/:id" element={<Article />} />
+      
+      {/* Protected routes (requires login) */}
       <Route path="/bookmarks" element={<ProtectedRoute><Bookmarks /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

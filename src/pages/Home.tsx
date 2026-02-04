@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileContainer } from "@/components/layout/MobileContainer";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { BreakingCard } from "@/components/cards/BreakingCard";
 import { ArticleCard } from "@/components/cards/ArticleCard";
 import { mockItems } from "@/lib/mockData";
@@ -10,20 +11,16 @@ export default function Home() {
   const breakingItems = mockItems.slice(0, 3);
   const recommendedItems = mockItems.slice(3);
 
+  const todayDate = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   return (
     <>
       <MobileContainer>
-        {/* Header */}
-        <header className="pt-6 pb-4">
-          <h1 className="text-h1 text-foreground">Today</h1>
-          <p className="text-meta text-muted-foreground">
-            {new Date().toLocaleDateString("fr-FR", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </p>
-        </header>
+        <PublicHeader title="Today" subtitle={todayDate} />
 
         {/* Breaking News Section */}
         <section className="mb-8">
