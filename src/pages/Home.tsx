@@ -5,69 +5,135 @@ import { MobileContainer } from "@/components/layout/MobileContainer";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { BreakingCard } from "@/components/cards/BreakingCard";
 import { ArticleCard } from "@/components/cards/ArticleCard";
-import { mockItems } from "@/lib/mockData";
+import { useLatestItems, useLatestDigest } from "@/hooks/useDigests";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+
+function LoadingSkeleton() {
+  return (
+    <>
+      {/* Breaking skeleton */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="w-[260px] h-[180px] rounded-card flex-shrink-0" />
+          ))}
+        </div>
+      </section>
+      
+      {/* Recommendations skeleton */}
+      <section>
+        <Skeleton className="h-6 w-40 mb-4" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-card" />
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="py-16 text-center">
+      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+        <span className="text-3xl">📰</span>
+      </div>
+      <h2 className="text-h2 text-foreground mb-2">Pas encore de digest</h2>
+      <p className="text-body text-muted-foreground max-w-xs mx-auto">
+        Le premier digest arrive bientôt. Reviens demain !
+      </p>
+    </div>
+  );
+}
 
 export default function Home() {
-  const breakingItems = mockItems.slice(0, 3);
-  const recommendedItems = mockItems.slice(3);
+  const { data: items, isLoading: loadingItems } = useLatestItems();
+  const { data: digest, isLoading: loadingDigest } = useLatestDigest();
 
-  const todayDate = new Date().toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const isLoading = loadingItems || loadingDigest;
+  const hasContent = items && items.length > 0;
+
+  const breakingItems = items?.slice(0, 3) || [];
+  const recommendedItems = items?.slice(3) || [];
+
+  const todayDate = digest
+    ? format(new Date(digest.date), "EEEE d MMMM", { locale: fr })
+    : new Date().toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
 
   return (
     <>
       <MobileContainer>
         <PublicHeader title="Today" subtitle={todayDate} />
 
-        {/* Breaking News Section */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-h2 text-foreground">Breaking News</h2>
-            <Link
-              to="/discover"
-              className="flex items-center gap-1 text-meta text-primary font-medium touch-target"
-            >
-              View all
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
+        {isLoading ? (
+          <LoadingSkeleton />
+        ) : !hasContent ? (
+          <EmptyState />
+        ) : (
+          <>
+            {/* Breaking News Section */}
+            {breakingItems.length > 0 && (
+              <section className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-h2 text-foreground">Breaking News</h2>
+                  <Link
+                    to="/discover"
+                    className="flex items-center gap-1 text-meta text-primary font-medium touch-target"
+                  >
+                    View all
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </div>
 
-          {/* Horizontal Scroll */}
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
-            {breakingItems.map((item) => (
-              <BreakingCard
-                key={item.id}
-                id={item.id}
-                title={item.title}
-                source={item.source}
-                imageUrl={item.image_url}
-                tags={item.tags}
-                readTime={item.read_time_minutes}
-              />
-            ))}
-          </div>
-        </section>
+                {/* Horizontal Scroll */}
+                <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+                  {breakingItems.map((item) => (
+                    <BreakingCard
+                      key={item.id}
+                      id={item.id}
+                      title={item.title}
+                      source={item.source || ""}
+                      imageUrl={item.image_url}
+                      tags={Array.isArray(item.tags) ? (item.tags as string[]) : []}
+                      readTime={item.read_time_minutes || 2}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-        {/* Recommendations Section */}
-        <section>
-          <h2 className="text-h2 text-foreground mb-4">Recommendation</h2>
-          <div className="space-y-3">
-            {recommendedItems.map((item) => (
-              <ArticleCard
-                key={item.id}
-                id={item.id}
-                title={item.title}
-                source={item.source}
-                snippet={item.snippet}
-                imageUrl={item.image_url}
-                readTime={item.read_time_minutes}
-              />
-            ))}
-          </div>
-        </section>
+            {/* Recommendations Section */}
+            {recommendedItems.length > 0 && (
+              <section>
+                <h2 className="text-h2 text-foreground mb-4">Recommendation</h2>
+                <div className="space-y-3">
+                  {recommendedItems.map((item) => (
+                    <ArticleCard
+                      key={item.id}
+                      id={item.id}
+                      title={item.title}
+                      source={item.source || ""}
+                      snippet={item.snippet || ""}
+                      imageUrl={item.image_url}
+                      readTime={item.read_time_minutes || 2}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
       </MobileContainer>
       <BottomNav />
     </>
