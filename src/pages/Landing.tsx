@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Zap, Clock, Target, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedAuroraBackground } from "@/components/ui/AnimatedAuroraBackground";
 import { mockItems } from "@/lib/mockData";
 
 export default function Landing() {
   const previewItems = mockItems.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedAuroraBackground />
       {/* Hero Section */}
       <section className="container px-4 pt-16 pb-12">
         <div className="text-center max-w-lg mx-auto">

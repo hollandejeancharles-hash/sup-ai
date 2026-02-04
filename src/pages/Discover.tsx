@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileContainer } from "@/components/layout/MobileContainer";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 import { ArticleCard } from "@/components/cards/ArticleCard";
 import { CategoryChip } from "@/components/cards/CategoryChip";
 import { mockItems, mockCategories } from "@/lib/mockData";
@@ -21,22 +22,19 @@ export default function Discover() {
   return (
     <>
       <MobileContainer>
-        {/* Header */}
-        <header className="pt-6 pb-4">
-          <h1 className="text-h1 text-foreground mb-4">Discover</h1>
+        <PublicHeader title="Discover" />
 
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search articles..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 rounded-full bg-secondary border-0 text-body"
-            />
-          </div>
-        </header>
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search articles..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-12 h-12 rounded-full bg-secondary border-0 text-body"
+          />
+        </div>
 
         {/* Category Chips */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4">

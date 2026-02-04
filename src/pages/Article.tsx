@@ -3,11 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Bookmark, Share2, ExternalLink } from "lucide-react";
 import { mockItems } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { LoginPromptModal } from "@/components/ui/LoginPromptModal";
 
 export default function Article() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const item = mockItems.find((i) => i.id === id);
 
@@ -23,6 +27,15 @@ export default function Article() {
       </div>
     );
   }
+
+  const handleBookmark = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setIsBookmarked(!isBookmarked);
+    // TODO: Save to Supabase
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -66,7 +79,7 @@ export default function Article() {
             </button>
             <div className="flex gap-2">
               <button
-                onClick={() => setIsBookmarked(!isBookmarked)}
+                onClick={handleBookmark}
                 className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center touch-target"
               >
                 <Bookmark
@@ -153,6 +166,13 @@ export default function Article() {
           <div className="h-20" />
         </div>
       </div>
+
+      {/* Login Prompt Modal */}
+      <LoginPromptModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+        action="les favoris"
+      />
     </div>
   );
 }
