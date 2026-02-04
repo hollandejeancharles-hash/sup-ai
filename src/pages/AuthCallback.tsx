@@ -11,8 +11,9 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the code from URL (PKCE flow)
+        // Get the code and redirect param from URL
         const code = searchParams.get("code");
+        const redirectTo = searchParams.get("redirect") || "/home";
         const errorParam = searchParams.get("error");
         const errorDescription = searchParams.get("error_description");
 
@@ -33,8 +34,8 @@ export default function AuthCallback() {
           }
 
           if (data.session) {
-            console.log("Session established successfully");
-            navigate("/home", { replace: true });
+            console.log("Session established successfully, redirecting to:", redirectTo);
+            navigate(redirectTo, { replace: true });
             return;
           }
         }
@@ -43,8 +44,8 @@ export default function AuthCallback() {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          console.log("Existing session found");
-          navigate("/home", { replace: true });
+          console.log("Existing session found, redirecting to:", redirectTo);
+          navigate(redirectTo, { replace: true });
           return;
         }
 
