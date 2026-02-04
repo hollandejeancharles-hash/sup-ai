@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 // Pages
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import AdminAuth from "./pages/AdminAuth";
 import AuthCallback from "./pages/AuthCallback";
 import Home from "./pages/Home";
 import Discover from "./pages/Discover";
@@ -63,6 +64,9 @@ function AppRoutes() {
       {/* Public only routes (redirect if logged in) */}
       <Route path="/" element={<PublicOnlyRoute><Landing /></PublicOnlyRoute>} />
       <Route path="/auth" element={<PublicOnlyRoute><Auth /></PublicOnlyRoute>} />
+      
+      {/* Admin auth - hidden route, not linked from public pages */}
+      <Route path="/admin/login" element={<AdminAuth />} />
       
       {/* Auth callback - always accessible */}
       <Route path="/auth/callback" element={<AuthCallback />} />
