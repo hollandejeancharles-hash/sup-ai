@@ -172,4 +172,9 @@
   .shadow-elevated {
     box-shadow: var(--shadow-elevated);
   }
+
+  /* Bottom sheet safe area */
+  .pb-safe {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+  }
 }

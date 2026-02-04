@@ -1,24 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Bookmark, Share2, ExternalLink } from "lucide-react";
 import { mockItems } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
-import { LoginPromptModal } from "@/components/ui/LoginPromptModal";
+import { useProtectedAction } from "@/hooks/useProtectedAction";
+import { toast } from "sonner";
 
 export default function Article() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { executeProtected, isAuthenticated } = useProtectedAction();
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const item = mockItems.find((i) => i.id === id);
-
-  useEffect(() => {
-    // Scroll to top on mount
-    window.scrollTo(0, 0);
-  }, [id]);
 
   if (!item) {
     return (
@@ -29,12 +23,18 @@ export default function Article() {
   }
 
   const handleBookmark = () => {
-    if (!user) {
-      setShowLoginModal(true);
-      return;
-    }
-    setIsBookmarked(!isBookmarked);
-    // TODO: Save to Supabase
+    executeProtected(
+      () => {
+        setIsBookmarked(!isBookmarked);
+        if (!isBookmarked) {
+          toast.success("Ajouté aux favoris");
+        } else {
+          toast.success("Retiré des favoris");
+        }
+        // TODO: Save to Supabase
+      },
+      { actionType: "bookmark", actionLabel: "sauvegarder cet article" }
+    );
   };
 
   const handleShare = async () => {
@@ -166,13 +166,6 @@ export default function Article() {
           <div className="h-20" />
         </div>
       </div>
-
-      {/* Login Prompt Modal */}
-      <LoginPromptModal
-        open={showLoginModal}
-        onOpenChange={setShowLoginModal}
-        action="les favoris"
-      />
     </div>
   );
 }

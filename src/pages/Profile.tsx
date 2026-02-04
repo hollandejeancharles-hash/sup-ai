@@ -1,20 +1,40 @@
-import { useState } from "react";
-import { LogOut, Bell, Mail, Info, ChevronRight, Crown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { LogOut, Bell, Mail, Info, ChevronRight, Crown, LogIn } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileContainer } from "@/components/layout/MobileContainer";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthSheet } from "@/contexts/AuthSheetContext";
 import { useNavigate } from "react-router-dom";
+import { useProtectedAction } from "@/hooks/useProtectedAction";
 
 export default function Profile() {
   const { user, signOut } = useAuth();
+  const { openAuthSheet } = useAuthSheet();
+  const { executeProtected } = useProtectedAction();
   const navigate = useNavigate();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    navigate("/home");
+  };
+
+  // Prompt auth when trying to toggle notifications without being logged in
+  const handleEmailToggle = (checked: boolean) => {
+    executeProtected(
+      () => setEmailNotifications(checked),
+      { actionType: "notifications", actionLabel: "gérer tes notifications" }
+    );
+  };
+
+  const handlePushToggle = (checked: boolean) => {
+    executeProtected(
+      () => setPushNotifications(checked),
+      { actionType: "notifications", actionLabel: "activer les notifications push" }
+    );
   };
 
   // Get user initials for avatar
@@ -22,6 +42,55 @@ export default function Profile() {
     if (!user?.email) return "?";
     return user.email.charAt(0).toUpperCase();
   };
+
+  // Not logged in state
+  if (!user) {
+    return (
+      <>
+        <MobileContainer>
+          <header className="pt-6 pb-6">
+            <h1 className="text-h1 text-foreground mb-6">Profile</h1>
+
+            {/* Guest state */}
+            <div className="flex flex-col items-center py-8">
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                <LogIn className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h2 className="text-h2 text-foreground mb-2">Bienvenue</h2>
+              <p className="text-body text-muted-foreground text-center max-w-xs mb-6">
+                Connecte-toi pour sauvegarder tes articles et gérer tes préférences.
+              </p>
+              <Button
+                onClick={() => openAuthSheet()}
+                className="rounded-full h-12 px-8 text-body font-semibold"
+              >
+                Se connecter
+              </Button>
+            </div>
+          </header>
+
+          {/* About Card (visible to all) */}
+          <section className="mb-4">
+            <button className="w-full bg-card rounded-card shadow-card p-5 flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                <Info className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-body font-semibold text-foreground">
+                  About & Legal
+                </h3>
+                <p className="text-meta text-muted-foreground">
+                  Terms, privacy, version
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+          </section>
+        </MobileContainer>
+        <BottomNav />
+      </>
+    );
+  }
 
   return (
     <>
@@ -63,7 +132,7 @@ export default function Profile() {
               </div>
               <Switch
                 checked={emailNotifications}
-                onCheckedChange={setEmailNotifications}
+                onCheckedChange={handleEmailToggle}
               />
             </div>
 
@@ -74,7 +143,7 @@ export default function Profile() {
               </div>
               <Switch
                 checked={pushNotifications}
-                onCheckedChange={setPushNotifications}
+                onCheckedChange={handlePushToggle}
               />
             </div>
           </div>
