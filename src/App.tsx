@@ -12,6 +12,7 @@ import { AuthSheetContainer } from "@/components/auth/AuthSheetContainer";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import AdminAuth from "./pages/AdminAuth";
+import AdminSignup from "./pages/AdminSignup";
 import AuthCallback from "./pages/AuthCallback";
 import Home from "./pages/Home";
 import Discover from "./pages/Discover";
@@ -73,6 +74,8 @@ function AppRoutes() {
       {/* Auth routes */}
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/admin/login" element={<AdminAuth />} />
+      <Route path="/admin/signup" element={<AdminSignup />} />
       <Route path="/admin/login" element={<AdminAuth />} />
       
       {/* Semi-protected routes - show content but prompt auth for actions */}
