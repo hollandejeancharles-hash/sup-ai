@@ -168,7 +168,13 @@ export default function AdminAuth() {
           </form>
 
           <p className="text-small text-muted-foreground text-center mt-6">
-            Seuls les comptes avec le rôle admin peuvent accéder au panneau.
+            Tu as un code d'invitation ?{" "}
+            <button
+              onClick={() => navigate("/admin/signup")}
+              className="text-primary font-medium hover:underline"
+            >
+              Créer un compte
+            </button>
           </p>
         </div>
       </div>
