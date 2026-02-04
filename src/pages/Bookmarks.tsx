@@ -1,13 +1,56 @@
+import { useEffect } from "react";
 import { Bookmark } from "lucide-react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileContainer } from "@/components/layout/MobileContainer";
 import { ArticleCard } from "@/components/cards/ArticleCard";
 import { mockItems } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { useAuthSheet } from "@/contexts/AuthSheetContext";
 
 export default function Bookmarks() {
+  const { user, loading } = useAuth();
+  const { openAuthSheet } = useAuthSheet();
+
   // For now, show first 3 items as "bookmarked" for demo
   const bookmarkedItems = mockItems.slice(0, 3);
-  const hasBookmarks = bookmarkedItems.length > 0;
+  const hasBookmarks = user && bookmarkedItems.length > 0;
+
+  // If not logged in, prompt auth sheet
+  useEffect(() => {
+    if (!loading && !user) {
+      openAuthSheet({
+        type: "bookmarks",
+        label: "voir tes favoris",
+        execute: () => {
+          // After login, stay on this page
+        },
+      });
+    }
+  }, [user, loading, openAuthSheet]);
+
+  // Show empty state prompting login if not authenticated
+  if (!user) {
+    return (
+      <>
+        <MobileContainer>
+          <header className="pt-6 pb-4">
+            <h1 className="text-h1 text-foreground">Saved</h1>
+          </header>
+
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Bookmark className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h2 className="text-h2 text-foreground mb-2">Connecte-toi</h2>
+            <p className="text-body text-muted-foreground text-center max-w-xs">
+              Pour sauvegarder des articles et les retrouver ici.
+            </p>
+          </div>
+        </MobileContainer>
+        <BottomNav />
+      </>
+    );
+  }
 
   return (
     <>

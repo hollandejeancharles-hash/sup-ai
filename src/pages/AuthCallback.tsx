@@ -17,12 +17,37 @@ export default function AuthCallback() {
         const errorParam = searchParams.get("error");
         const errorDescription = searchParams.get("error_description");
 
+        // Also check URL hash for OAuth implicit flow
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
         if (errorParam) {
           console.error("Auth callback error:", errorParam, errorDescription);
           setError(errorDescription || "Une erreur est survenue lors de la connexion.");
           return;
         }
 
+        // Handle OAuth implicit flow (tokens in hash)
+        if (accessToken && refreshToken) {
+          console.log("Setting session from hash tokens...");
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            setError("Erreur lors de la connexion. Réessaie.");
+            return;
+          }
+
+          console.log("Session established via OAuth, redirecting to:", redirectTo);
+          navigate(redirectTo, { replace: true });
+          return;
+        }
+
+        // Handle PKCE flow (code exchange)
         if (code) {
           console.log("Exchanging code for session...");
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -34,13 +59,13 @@ export default function AuthCallback() {
           }
 
           if (data.session) {
-            console.log("Session established successfully, redirecting to:", redirectTo);
+            console.log("Session established via code exchange, redirecting to:", redirectTo);
             navigate(redirectTo, { replace: true });
             return;
           }
         }
 
-        // If no code, check if we already have a session (magic link flow)
+        // If no code/tokens, check if we already have a session (magic link flow)
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
@@ -71,10 +96,10 @@ export default function AuthCallback() {
           <h1 className="text-h2 text-foreground mb-3">Oups !</h1>
           <p className="text-body text-muted-foreground mb-6">{error}</p>
           <button
-            onClick={() => navigate("/auth")}
+            onClick={() => navigate("/home")}
             className="text-primary font-medium hover:underline"
           >
-            Retourner à la connexion
+            Retourner à l'accueil
           </button>
         </div>
       </div>

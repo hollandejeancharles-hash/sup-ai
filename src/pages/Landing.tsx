@@ -3,9 +3,22 @@ import { ArrowRight, Zap, Clock, Target, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnimatedAuroraBackground } from "@/components/ui/AnimatedAuroraBackground";
 import { mockItems } from "@/lib/mockData";
+import { useAuthSheet } from "@/contexts/AuthSheetContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
+  const { user } = useAuth();
+  const { openAuthSheet } = useAuthSheet();
   const previewItems = mockItems.slice(0, 3);
+
+  const handleGetStarted = () => {
+    if (user) {
+      // Already logged in, go to home
+      window.location.href = "/home";
+    } else {
+      openAuthSheet();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -32,14 +45,16 @@ export default function Landing() {
 
           {/* CTAs */}
           <div className="flex flex-col gap-3">
-            <Button asChild size="lg" className="w-full rounded-full h-12 text-body font-semibold">
-              <Link to="/auth">
-                Se connecter par email
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+            <Button 
+              size="lg" 
+              className="w-full rounded-full h-12 text-body font-semibold"
+              onClick={handleGetStarted}
+            >
+              {user ? "Voir le digest" : "Commencer"}
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button asChild variant="outline" size="lg" className="w-full rounded-full h-12 text-body">
-              <Link to="#preview">Voir un exemple</Link>
+              <Link to="/home">Lire sans compte</Link>
             </Button>
           </div>
         </div>
@@ -159,11 +174,13 @@ export default function Landing() {
           <p className="text-body text-muted-foreground mb-6">
             Rejoins les lecteurs qui gagnent du temps chaque jour.
           </p>
-          <Button asChild size="lg" className="w-full rounded-full h-12 text-body font-semibold">
-            <Link to="/auth">
-              Commencer maintenant
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+          <Button 
+            size="lg" 
+            className="w-full rounded-full h-12 text-body font-semibold"
+            onClick={handleGetStarted}
+          >
+            {user ? "Voir le digest" : "Commencer maintenant"}
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>
