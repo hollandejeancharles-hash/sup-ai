@@ -36,52 +36,66 @@
    const [parseError, setParseError] = useState<string | null>(null);
    const [isImporting, setIsImporting] = useState(false);
  
-   const handleParse = () => {
-     setParseError(null);
-     setParsedItems(null);
- 
-     if (!jsonInput.trim()) {
-       setParseError("Veuillez coller du JSON");
-       return;
-     }
- 
-     try {
-       const data = JSON.parse(jsonInput.trim());
- 
-       // Support both array and object with items property
-       let items: JsonItem[];
-       if (Array.isArray(data)) {
-         items = data;
-       } else if (data.items && Array.isArray(data.items)) {
-         items = data.items;
-       } else {
-         setParseError("Format invalide. Attendu: un tableau ou un objet avec une propriété 'items'");
-         return;
-       }
- 
-       // Validate each item has at least a title
-       const validItems = items.filter((item) => item.title && typeof item.title === "string");
- 
-       if (validItems.length === 0) {
-         setParseError("Aucun article valide trouvé. Chaque article doit avoir un 'title'");
-         return;
-       }
- 
-       if (validItems.length !== items.length) {
-         toast.warning(`${items.length - validItems.length} article(s) ignoré(s) car sans titre`);
-       }
- 
-        // Normalize items: map "paragraphe" to "content_md"
-        const normalizedItems = validItems.map((item) => ({
-          ...item,
-          content_md: item.content_md || item.paragraphe,
-        }));
+  const handleParse = () => {
+    setParseError(null);
+    setParsedItems(null);
 
-        setParsedItems(normalizedItems);
-     } catch {
-       setParseError("JSON invalide. Vérifiez la syntaxe.");
-     }
-   };
+    let input = jsonInput.trim();
+    
+    if (!input) {
+      setParseError("Veuillez coller du JSON");
+      return;
+    }
+
+    // Remove surrounding quotes if the JSON was pasted as a string
+    if ((input.startsWith('"') && input.endsWith('"')) || 
+        (input.startsWith("'") && input.endsWith("'"))) {
+      input = input.slice(1, -1);
+      // Also unescape any escaped quotes inside
+      input = input.replace(/\\"/g, '"').replace(/\\'/g, "'");
+    }
+
+    try {
+      const data = JSON.parse(input);
+
+      // Support both array and object with items property
+      let items: JsonItem[];
+      if (Array.isArray(data)) {
+        items = data;
+      } else if (data.items && Array.isArray(data.items)) {
+        items = data.items;
+      } else {
+        setParseError("Format invalide. Attendu: un tableau ou un objet avec une propriété 'items'");
+        return;
+      }
+
+      // Validate each item has at least a title
+      const validItems = items.filter((item) => item.title && typeof item.title === "string");
+
+      if (validItems.length === 0) {
+        setParseError("Aucun article valide trouvé. Chaque article doit avoir un 'title'");
+        return;
+      }
+
+      if (validItems.length !== items.length) {
+        toast.warning(`${items.length - validItems.length} article(s) ignoré(s) car sans titre`);
+      }
+
+      // Normalize items: map "paragraphe" to "content_md" and clean empty strings
+      const normalizedItems = validItems.map((item) => ({
+        ...item,
+        content_md: item.content_md || item.paragraphe || undefined,
+        image_url: item.image_url || undefined, // Convert empty string to undefined
+        video_url: item.video_url || undefined, // Convert empty string to undefined
+        url: item.url || undefined,
+      }));
+
+      setParsedItems(normalizedItems);
+    } catch (e) {
+      console.error("JSON parse error:", e);
+      setParseError("JSON invalide. Vérifiez la syntaxe (guillemets, virgules, etc.)");
+    }
+  };
  
    const handleImport = async () => {
      if (!parsedItems) return;
