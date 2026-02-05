@@ -36,6 +36,41 @@
    const [parseError, setParseError] = useState<string | null>(null);
    const [isImporting, setIsImporting] = useState(false);
  
+  // Try to fix common JSON issues like unescaped quotes in strings
+  const tryFixJson = (input: string): string => {
+    // First, try parsing as-is
+    try {
+      JSON.parse(input);
+      return input;
+    } catch {
+      // Try to fix unescaped quotes within string values
+      // This regex finds string values and escapes internal quotes
+      let fixed = input;
+      
+      // Replace smart/curly quotes with straight quotes first
+      fixed = fixed
+        .replace(/"/g, '"')
+        .replace(/"/g, '"')
+        .replace(/'/g, "'")
+        .replace(/'/g, "'");
+      
+      // Try to fix unescaped quotes in string values
+      // Match content between property value quotes, handling multi-line
+      fixed = fixed.replace(
+        /:\s*"([\s\S]*?)(?<!\\)"\s*([,}\]])/g,
+        (match, content, ending) => {
+          // Escape any unescaped quotes inside the content
+          // But preserve already escaped ones
+          const escapedContent = content
+            .replace(/(?<!\\)"/g, '\\"');
+          return `: "${escapedContent}"${ending}`;
+        }
+      );
+      
+      return fixed;
+    }
+  };
+
   const handleParse = () => {
     setParseError(null);
     setParsedItems(null);
@@ -51,9 +86,11 @@
     if ((input.startsWith('"') && input.endsWith('"')) || 
         (input.startsWith("'") && input.endsWith("'"))) {
       input = input.slice(1, -1);
-      // Also unescape any escaped quotes inside
       input = input.replace(/\\"/g, '"').replace(/\\'/g, "'");
     }
+
+    // Try to fix common JSON issues
+    input = tryFixJson(input);
 
     try {
       const data = JSON.parse(input);
@@ -85,15 +122,17 @@
       const normalizedItems = validItems.map((item) => ({
         ...item,
         content_md: item.content_md || item.paragraphe || undefined,
-        image_url: item.image_url || undefined, // Convert empty string to undefined
-        video_url: item.video_url || undefined, // Convert empty string to undefined
+        image_url: item.image_url || undefined,
+        video_url: item.video_url || undefined,
         url: item.url || undefined,
       }));
 
       setParsedItems(normalizedItems);
     } catch (e) {
       console.error("JSON parse error:", e);
-      setParseError("JSON invalide. Vérifiez la syntaxe (guillemets, virgules, etc.)");
+      setParseError(
+        'JSON invalide. Vérifiez que les guillemets dans le texte sont échappés (ex: \\"texte\\") ou utilisez des apostrophes.'
+      );
     }
   };
  
