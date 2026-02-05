@@ -47,6 +47,20 @@ const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
     fixes.push("Guillemets englobants supprimés");
   }
 
+  // Normalize line endings
+  const lineEndBefore = cleaned;
+  cleaned = cleaned.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (lineEndBefore !== cleaned) fixes.push("Retours ligne normalisés");
+
+  // Remove invisible control characters that break JSON parsing (often from PDF/Notion copy)
+  // Keep: \n, \t. Remove: other ASCII control chars + unicode line separators.
+  const ctrlBefore = cleaned;
+  cleaned = cleaned
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
+    .replace(/\u2028|\u2029/g, "\n")
+    .replace(/\u00A0/g, " "); // nbsp
+  if (ctrlBefore !== cleaned) fixes.push("Caractères invisibles supprimés");
+
   // Replace smart/curly quotes with straight quotes
   const smartQuotesBefore = cleaned;
   cleaned = cleaned
@@ -149,7 +163,19 @@ export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
       setParsedItems(normalizedItems);
     } catch (e: any) {
       const msg = typeof e?.message === "string" ? e.message : "Erreur JSON";
-      setParseError(`JSON invalide: ${msg}`);
+
+      // Provide context around the error when possible
+      const match = msg.match(/position\s+(\d+)/i);
+      if (match) {
+        const pos = Number(match[1]);
+        const start = Math.max(0, pos - 30);
+        const end = Math.min(cleaned.length, pos + 30);
+        const context = cleaned.slice(start, end).replace(/\n/g, "\\n");
+        setParseError(`JSON invalide: ${msg}\n…${context}…`);
+      } else {
+        setParseError(`JSON invalide: ${msg}`);
+      }
+
       console.error("JSON parse error:", e);
     }
   };
