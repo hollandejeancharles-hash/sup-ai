@@ -15,6 +15,7 @@ import {
   GripVertical,
   FileJson,
   AlignLeft,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import {
   useCreateItem,
   useUpdateItem,
   useDeleteItem,
+  useToggleItemPublish,
   type Digest,
   type Item,
 } from "@/hooks/useDigests";
@@ -67,6 +69,7 @@ export default function Admin() {
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
   const deleteItem = useDeleteItem();
+  const toggleItemPublish = useToggleItemPublish();
 
   const handleCreateDigest = async () => {
     if (!newDigestDate) return;
@@ -381,63 +384,95 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {items?.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className="bg-card rounded-card shadow-card p-4 flex gap-3"
-                      >
-                        <div className="flex items-center text-muted-foreground">
-                          <GripVertical className="h-5 w-5" />
-                        </div>
-
-                        {/* Thumbnail */}
-                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0">
-                          {item.image_url ? (
-                            <img
-                              src={item.image_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+                    {items?.map((item, index) => {
+                      const isPublished = (item as any).is_published !== false;
+                      const isBreaking = (item as any).is_breaking === true;
+                      
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "bg-card rounded-card shadow-card p-4 flex gap-3",
+                            !isPublished && "opacity-50"
                           )}
-                        </div>
+                        >
+                          <div className="flex items-center text-muted-foreground">
+                            <GripVertical className="h-5 w-5" />
+                          </div>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-body font-medium text-foreground line-clamp-2">
-                            {item.title}
-                          </p>
-                          <p className="text-small text-muted-foreground">
-                            {item.source} • {item.read_time_minutes} min
-                            {(item as any).video_url && " • 🎬 Vidéo"}
-                          </p>
-                        </div>
+                          {/* Thumbnail */}
+                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0 relative">
+                            {item.image_url ? (
+                              <img
+                                src={item.image_url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+                            )}
+                            {isBreaking && (
+                              <div className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full p-1">
+                                <Zap className="h-3 w-3" />
+                              </div>
+                            )}
+                          </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingItem(item);
-                              setShowItemForm(true);
-                            }}
-                            className="touch-target"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteItem(item)}
-                            className="touch-target text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-body font-medium text-foreground line-clamp-2">
+                              {item.title}
+                            </p>
+                            <p className="text-small text-muted-foreground">
+                              {item.source} • {item.read_time_minutes} min
+                              {(item as any).video_url && " • 🎬"}
+                              {isBreaking && " • ⚡ Breaking"}
+                              {!isPublished && " • 🔒 Masqué"}
+                            </p>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleItemPublish.mutate({
+                                id: item.id,
+                                isPublished: !isPublished
+                              })}
+                              disabled={toggleItemPublish.isPending}
+                              className="touch-target"
+                              title={isPublished ? "Masquer" : "Publier"}
+                            >
+                              {isPublished ? (
+                                <Eye className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <EyeOff className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingItem(item);
+                                setShowItemForm(true);
+                              }}
+                              className="touch-target"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteItem(item)}
+                              className="touch-target text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 

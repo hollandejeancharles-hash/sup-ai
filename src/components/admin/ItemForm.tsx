@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { X, Save, Loader2 } from "lucide-react";
+import { X, Save, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ImageUpload } from "./ImageUpload";
 import { YouTubeInput } from "./YouTubeInput";
@@ -38,6 +39,8 @@ export function ItemForm({
     video_url: "",
     tags: [] as string[],
     read_time_minutes: 2,
+    is_breaking: false,
+    is_published: true,
   });
 
   // Reset form when item changes
@@ -53,6 +56,8 @@ export function ItemForm({
         video_url: (item as any).video_url || "",
         tags: Array.isArray(item.tags) ? (item.tags as string[]) : [],
         read_time_minutes: item.read_time_minutes || 2,
+        is_breaking: (item as any).is_breaking || false,
+        is_published: (item as any).is_published !== false,
       });
     } else {
       setFormData({
@@ -65,6 +70,8 @@ export function ItemForm({
         video_url: "",
         tags: [],
         read_time_minutes: 2,
+        is_breaking: false,
+        is_published: true,
       });
     }
   }, [item, open]);
@@ -83,6 +90,8 @@ export function ItemForm({
           tags: formData.tags,
           image_url: formData.image_url || null,
           video_url: formData.video_url || null,
+          is_breaking: formData.is_breaking,
+          is_published: formData.is_published,
         } as any);
       } else {
         await onSave({
@@ -92,6 +101,8 @@ export function ItemForm({
           tags: formData.tags,
           image_url: formData.image_url || null,
           video_url: formData.video_url || null,
+          is_breaking: formData.is_breaking,
+          is_published: formData.is_published,
         } as any);
       }
       onOpenChange(false);
@@ -125,6 +136,35 @@ export function ItemForm({
         {/* Form */}
         <form onSubmit={handleSubmit} className="overflow-auto h-full pb-32">
           <div className="p-4 space-y-5">
+            {/* Breaking News & Published Toggles */}
+            <div className="flex gap-4 p-4 bg-muted/50 rounded-xl">
+              <div className="flex items-center gap-3 flex-1">
+                <Switch
+                  id="is_breaking"
+                  checked={formData.is_breaking}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, is_breaking: checked }))
+                  }
+                />
+                <label htmlFor="is_breaking" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                  <Zap className="h-4 w-4 text-primary" />
+                  Breaking News
+                </label>
+              </div>
+              <div className="flex items-center gap-3 flex-1">
+                <Switch
+                  id="is_published"
+                  checked={formData.is_published}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, is_published: checked }))
+                  }
+                />
+                <label htmlFor="is_published" className="text-sm font-medium cursor-pointer">
+                  Publié
+                </label>
+              </div>
+            </div>
+
             {/* Title */}
             <div>
               <label className="text-meta font-medium text-foreground block mb-2">
