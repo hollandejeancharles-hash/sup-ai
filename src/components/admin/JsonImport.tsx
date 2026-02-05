@@ -1,40 +1,118 @@
- import { useState } from "react";
- import { Upload, FileJson, Loader2, Check, AlertCircle } from "lucide-react";
- import { Button } from "@/components/ui/button";
- import { Textarea } from "@/components/ui/textarea";
- import {
-   Dialog,
-   DialogContent,
-   DialogHeader,
-   DialogTitle,
-   DialogDescription,
- } from "@/components/ui/dialog";
- import { toast } from "sonner";
- 
- interface JsonItem {
-   title: string;
-   url?: string;
-   source?: string;
-   snippet?: string;
-   tags?: string[];
-   image_url?: string;
-   content_md?: string;
+import { useState } from "react";
+import { Upload, FileJson, Loader2, Check, AlertCircle, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+
+interface JsonItem {
+  title: string;
+  url?: string;
+  source?: string;
+  snippet?: string;
+  tags?: string[];
+  image_url?: string;
+  content_md?: string;
   paragraphe?: string;
-   video_url?: string;
-   read_time_minutes?: number;
- }
+  video_url?: string;
+  read_time_minutes?: number;
+}
+
+interface JsonImportProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onImport: (items: JsonItem[]) => Promise<void>;
+}
+
+// Clean and fix common JSON issues
+const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
+  const fixes: string[] = [];
+  let cleaned = input.trim();
+
+  // Remove surrounding quotes if pasted as string
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || 
+      (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.slice(1, -1);
+    cleaned = cleaned.replace(/\\"/g, '"').replace(/\\'/g, "'");
+    fixes.push("Guillemets englobants supprimés");
+  }
+
+  // Replace smart/curly quotes with straight quotes
+  const smartQuotesBefore = cleaned;
+  cleaned = cleaned
+    .replace(/"/g, '"')
+    .replace(/"/g, '"')
+    .replace(/'/g, "'")
+    .replace(/'/g, "'")
+    .replace(/«/g, '"')
+    .replace(/»/g, '"');
+  if (smartQuotesBefore !== cleaned) {
+    fixes.push("Guillemets typographiques convertis");
+  }
+
+  // Replace fancy dashes with regular ones
+  const dashesBefore = cleaned;
+  cleaned = cleaned
+    .replace(/—/g, '-')
+    .replace(/–/g, '-');
+  if (dashesBefore !== cleaned) {
+    fixes.push("Tirets longs convertis");
+  }
+
+  // Try to escape unescaped quotes in string values
+  // This is a best-effort approach for common patterns
+  const quotesFixed = cleaned.replace(
+    /"paragraphe"\s*:\s*"([\s\S]*?)(?<!\\)"\s*,\s*"tags"/g,
+    (match, content) => {
+      // Count quotes - if there are internal ones, escape them
+      const internalQuotes = (content.match(/(?<!\\)"/g) || []).length;
+      if (internalQuotes > 0) {
+        const escaped = content.replace(/(?<!\\)"/g, '\\"');
+        fixes.push("Guillemets non échappés corrigés dans paragraphe");
+        return `"paragraphe": "${escaped}", "tags"`;
+      }
+      return match;
+    }
+  );
+  cleaned = quotesFixed;
+
+  // Also fix snippet field similarly
+  const snippetFixed = cleaned.replace(
+    /"snippet"\s*:\s*"([\s\S]*?)(?<!\\)"\s*,\s*"paragraphe"/g,
+    (match, content) => {
+      const internalQuotes = (content.match(/(?<!\\)"/g) || []).length;
+      if (internalQuotes > 0) {
+        const escaped = content.replace(/(?<!\\)"/g, '\\"');
+        fixes.push("Guillemets non échappés corrigés dans snippet");
+        return `"snippet": "${escaped}", "paragraphe"`;
+      }
+      return match;
+    }
+  );
+  cleaned = snippetFixed;
+
+  // Remove trailing commas before ] or }
+  const trailingBefore = cleaned;
+  cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+  if (trailingBefore !== cleaned) {
+    fixes.push("Virgules finales supprimées");
+  }
+
+  return { cleaned, fixes };
+};
  
- interface JsonImportProps {
-   open: boolean;
-   onOpenChange: (open: boolean) => void;
-   onImport: (items: JsonItem[]) => Promise<void>;
- }
- 
- export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
-   const [jsonInput, setJsonInput] = useState("");
-   const [parsedItems, setParsedItems] = useState<JsonItem[] | null>(null);
-   const [parseError, setParseError] = useState<string | null>(null);
-   const [isImporting, setIsImporting] = useState(false);
+export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
+  const [jsonInput, setJsonInput] = useState("");
+  const [parsedItems, setParsedItems] = useState<JsonItem[] | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [cleaningFixes, setCleaningFixes] = useState<string[]>([]);
  
   // Try to fix common JSON issues like unescaped quotes in strings
   const tryFixJson = (input: string): string => {
@@ -68,6 +146,25 @@
       );
       
       return fixed;
+    }
+  };
+
+  const handleClean = () => {
+    if (!jsonInput.trim()) {
+      toast.error("Collez d'abord du JSON à nettoyer");
+      return;
+    }
+    
+    const { cleaned, fixes } = cleanJsonText(jsonInput);
+    setJsonInput(cleaned);
+    setCleaningFixes(fixes);
+    setParsedItems(null);
+    setParseError(null);
+    
+    if (fixes.length > 0) {
+      toast.success(`${fixes.length} correction(s) appliquée(s)`);
+    } else {
+      toast.info("Aucune correction nécessaire");
     }
   };
 
@@ -151,12 +248,13 @@
      }
    };
  
-   const handleClose = () => {
-     setJsonInput("");
-     setParsedItems(null);
-     setParseError(null);
-     onOpenChange(false);
-   };
+  const handleClose = () => {
+    setJsonInput("");
+    setParsedItems(null);
+    setParseError(null);
+    setCleaningFixes([]);
+    onOpenChange(false);
+  };
  
    const exampleJson = `[
    {
@@ -187,32 +285,59 @@
  
          <div className="space-y-4">
            {/* JSON Input */}
-           <div className="space-y-2">
-             <Textarea
-               placeholder="Collez votre JSON ici..."
-               value={jsonInput}
-               onChange={(e) => {
-                 setJsonInput(e.target.value);
-                 setParsedItems(null);
-                 setParseError(null);
-               }}
-               className="min-h-[200px] font-mono text-sm"
-             />
-             
-             {parseError && (
-               <div className="flex items-center gap-2 text-destructive text-sm">
-                 <AlertCircle className="h-4 w-4" />
-                 {parseError}
-               </div>
-             )}
-           </div>
- 
-           {/* Parse Button */}
-           {!parsedItems && (
-             <Button onClick={handleParse} className="w-full">
-               Analyser le JSON
-             </Button>
-           )}
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Collez votre JSON ici..."
+                value={jsonInput}
+                onChange={(e) => {
+                  setJsonInput(e.target.value);
+                  setParsedItems(null);
+                  setParseError(null);
+                  setCleaningFixes([]);
+                }}
+                className="min-h-[200px] font-mono text-sm"
+              />
+              
+              {/* Cleaning fixes feedback */}
+              {cleaningFixes.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {cleaningFixes.map((fix, i) => (
+                    <span 
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
+                    >
+                      <Check className="h-3 w-3" />
+                      {fix}
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {parseError && (
+                <div className="flex items-center gap-2 text-destructive text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {parseError}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            {!parsedItems && (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleClean}
+                  className="flex-1"
+                  disabled={!jsonInput.trim()}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Nettoyer
+                </Button>
+                <Button onClick={handleParse} className="flex-1" disabled={!jsonInput.trim()}>
+                  Analyser le JSON
+                </Button>
+              </div>
+            )}
  
            {/* Preview */}
            {parsedItems && (
