@@ -13,6 +13,7 @@ import {
   Calendar,
   ChevronRight,
   GripVertical,
+   FileJson,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
   type Item,
 } from "@/hooks/useDigests";
 import { ItemForm } from "@/components/admin/ItemForm";
+ import { JsonImport } from "@/components/admin/JsonImport";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -45,6 +47,7 @@ export default function Admin() {
     new Date().toISOString().split("T")[0]
   );
   const [showNewDigest, setShowNewDigest] = useState(false);
+   const [showJsonImport, setShowJsonImport] = useState(false);
 
   // Queries
   const { data: digests, isLoading: loadingDigests } = useDigests();
@@ -103,6 +106,30 @@ export default function Admin() {
     }
   };
 
+   const handleJsonImport = async (items: any[]) => {
+     if (!selectedDigest) return;
+ 
+     const startRank = (items?.length || 0) + 1;
+ 
+     // Create items one by one to preserve order
+     for (let i = 0; i < items.length; i++) {
+       const item = items[i];
+       await createItem.mutateAsync({
+         digest_id: selectedDigest.id,
+         title: item.title,
+         url: item.url || null,
+         source: item.source || (item.url ? new URL(item.url).hostname.replace(/^www\./, "") : null),
+         snippet: item.snippet || null,
+         tags: item.tags || [],
+         image_url: item.image_url || null,
+         content_md: item.content_md || null,
+         video_url: item.video_url || null,
+         read_time_minutes: item.read_time_minutes || 2,
+         rank: startRank + i,
+       });
+     }
+   };
+ 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -308,17 +335,27 @@ export default function Admin() {
                 </div>
 
                 {/* Add Article Button */}
-                <Button
-                  onClick={() => {
-                    setEditingItem(null);
-                    setShowItemForm(true);
-                  }}
-                  variant="outline"
-                  className="w-full h-14 rounded-xl border-dashed border-2"
-                >
-                  <Plus className="mr-2 h-5 w-5" />
-                  Ajouter un article
-                </Button>
+               <div className="flex gap-3">
+                 <Button
+                   onClick={() => {
+                     setEditingItem(null);
+                     setShowItemForm(true);
+                   }}
+                   variant="outline"
+                   className="flex-1 h-14 rounded-xl border-dashed border-2"
+                 >
+                   <Plus className="mr-2 h-5 w-5" />
+                   Ajouter
+                 </Button>
+                 <Button
+                   onClick={() => setShowJsonImport(true)}
+                   variant="outline"
+                   className="flex-1 h-14 rounded-xl border-dashed border-2"
+                 >
+                   <FileJson className="mr-2 h-5 w-5" />
+                   Import JSON
+                 </Button>
+               </div>
 
                 {/* Articles List */}
                 {loadingItems ? (
@@ -402,6 +439,13 @@ export default function Admin() {
                   onSave={handleSaveItem}
                   nextRank={(items?.length || 0) + 1}
                 />
+ 
+               {/* JSON Import Dialog */}
+               <JsonImport
+                 open={showJsonImport}
+                 onOpenChange={setShowJsonImport}
+                 onImport={handleJsonImport}
+               />
               </>
             )}
           </TabsContent>
