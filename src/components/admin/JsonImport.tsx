@@ -44,24 +44,9 @@
        setParseError("Veuillez coller du JSON");
        return;
      }
- function sanitizeJsonInput(raw: string) {
-  return raw
-    .trim()
-    .replace(/^\uFEFF/, "")        // BOM
-   const items = toItems(data) as JsonItem[] | null;
-
-if (!items) {
-  setParseError("Forma
-
-  // Bonus: accepte un objet unique { ... } et l’entoure
-  if (parsed && typeof parsed === "object") return [parsed];
-  return null;
-}
-
+ 
      try {
-       const cleaned = sanitizeJsonInput(jsonInput);
-const data = JSON.parse(cleaned);
-
+       const data = JSON.parse(jsonInput.trim());
  
        // Support both array and object with items property
        let items: JsonItem[];
