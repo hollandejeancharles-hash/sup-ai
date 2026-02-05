@@ -19,6 +19,7 @@
    tags?: string[];
    image_url?: string;
    content_md?: string;
+  paragraphe?: string;
    video_url?: string;
    read_time_minutes?: number;
  }
@@ -70,7 +71,13 @@
          toast.warning(`${items.length - validItems.length} article(s) ignoré(s) car sans titre`);
        }
  
-       setParsedItems(validItems);
+        // Normalize items: map "paragraphe" to "content_md"
+        const normalizedItems = validItems.map((item) => ({
+          ...item,
+          content_md: item.content_md || item.paragraphe,
+        }));
+
+        setParsedItems(normalizedItems);
      } catch {
        setParseError("JSON invalide. Vérifiez la syntaxe.");
      }
@@ -104,9 +111,9 @@
      "url": "https://example.com/article",
      "source": "Example News",
      "snippet": "Résumé de l'article...",
+    "paragraphe": "Contenu complet de l'article affiché quand on l'ouvre...",
      "tags": ["Tech", "AI"],
      "image_url": "https://example.com/image.jpg",
-     "content_md": "Contenu complet en markdown...",
      "video_url": "https://youtube.com/watch?v=...",
      "read_time_minutes": 3
    }
