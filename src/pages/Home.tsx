@@ -5,7 +5,7 @@ import { MobileContainer } from "@/components/layout/MobileContainer";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { BreakingCard } from "@/components/cards/BreakingCard";
 import { ArticleCard } from "@/components/cards/ArticleCard";
-import { useLatestItems, useLatestDigest } from "@/hooks/useDigests";
+import { useBreakingItems, useRegularItems, useLatestDigest } from "@/hooks/useDigests";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -54,14 +54,12 @@ function EmptyState() {
 }
 
 export default function Home() {
-  const { data: items, isLoading: loadingItems } = useLatestItems();
+  const { data: breakingItems, isLoading: loadingBreaking } = useBreakingItems();
+  const { data: regularItems, isLoading: loadingRegular } = useRegularItems();
   const { data: digest, isLoading: loadingDigest } = useLatestDigest();
 
-  const isLoading = loadingItems || loadingDigest;
-  const hasContent = items && items.length > 0;
-
-  const breakingItems = items?.slice(0, 3) || [];
-  const recommendedItems = items?.slice(3) || [];
+  const isLoading = loadingBreaking || loadingRegular || loadingDigest;
+  const hasContent = (breakingItems && breakingItems.length > 0) || (regularItems && regularItems.length > 0);
 
   const todayDate = digest
     ? format(new Date(digest.date), "EEEE d MMMM", { locale: fr })
@@ -83,7 +81,7 @@ export default function Home() {
         ) : (
           <>
             {/* Breaking News Section */}
-            {breakingItems.length > 0 && (
+            {breakingItems && breakingItems.length > 0 && (
               <section className="mb-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-h2 text-foreground">Breaking News</h2>
@@ -114,11 +112,11 @@ export default function Home() {
             )}
 
             {/* Recommendations Section */}
-            {recommendedItems.length > 0 && (
+            {regularItems && regularItems.length > 0 && (
               <section>
-                <h2 className="text-h2 text-foreground mb-4">Recommendation</h2>
+                <h2 className="text-h2 text-foreground mb-4">Pour vous</h2>
                 <div className="space-y-3">
-                  {recommendedItems.map((item) => (
+                  {regularItems.map((item) => (
                     <ArticleCard
                       key={item.id}
                       id={item.id}
