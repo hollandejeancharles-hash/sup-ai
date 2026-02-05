@@ -10,6 +10,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { jsonrepair } from "jsonrepair";
+
 
 interface JsonItem {
   title: string;
@@ -36,8 +38,10 @@ const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
   let cleaned = input.trim();
 
   // Remove surrounding quotes if pasted as string
-  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || 
-      (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
     cleaned = cleaned.slice(1, -1);
     cleaned = cleaned.replace(/\\"/g, '"').replace(/\\'/g, "'");
     fixes.push("Guillemets englobants supprimés");
@@ -46,62 +50,29 @@ const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
   // Replace smart/curly quotes with straight quotes
   const smartQuotesBefore = cleaned;
   cleaned = cleaned
-    .replace(/"/g, '"')
-    .replace(/"/g, '"')
-    .replace(/'/g, "'")
-    .replace(/'/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
     .replace(/«/g, '"')
     .replace(/»/g, '"');
-  if (smartQuotesBefore !== cleaned) {
-    fixes.push("Guillemets typographiques convertis");
-  }
+  if (smartQuotesBefore !== cleaned) fixes.push("Guillemets typographiques convertis");
 
   // Replace fancy dashes with regular ones
   const dashesBefore = cleaned;
-  cleaned = cleaned
-    .replace(/—/g, '-')
-    .replace(/–/g, '-');
-  if (dashesBefore !== cleaned) {
-    fixes.push("Tirets longs convertis");
-  }
+  cleaned = cleaned.replace(/[—–]/g, "-");
+  if (dashesBefore !== cleaned) fixes.push("Tirets longs convertis");
 
-  // Try to escape unescaped quotes in string values
-  // This is a best-effort approach for common patterns
-  const quotesFixed = cleaned.replace(
-    /"paragraphe"\s*:\s*"([\s\S]*?)(?<!\\)"\s*,\s*"tags"/g,
-    (match, content) => {
-      // Count quotes - if there are internal ones, escape them
-      const internalQuotes = (content.match(/(?<!\\)"/g) || []).length;
-      if (internalQuotes > 0) {
-        const escaped = content.replace(/(?<!\\)"/g, '\\"');
-        fixes.push("Guillemets non échappés corrigés dans paragraphe");
-        return `"paragraphe": "${escaped}", "tags"`;
-      }
-      return match;
-    }
-  );
-  cleaned = quotesFixed;
-
-  // Also fix snippet field similarly
-  const snippetFixed = cleaned.replace(
-    /"snippet"\s*:\s*"([\s\S]*?)(?<!\\)"\s*,\s*"paragraphe"/g,
-    (match, content) => {
-      const internalQuotes = (content.match(/(?<!\\)"/g) || []).length;
-      if (internalQuotes > 0) {
-        const escaped = content.replace(/(?<!\\)"/g, '\\"');
-        fixes.push("Guillemets non échappés corrigés dans snippet");
-        return `"snippet": "${escaped}", "paragraphe"`;
-      }
-      return match;
-    }
-  );
-  cleaned = snippetFixed;
-
-  // Remove trailing commas before ] or }
+  // Best-effort: remove trailing commas
   const trailingBefore = cleaned;
-  cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
-  if (trailingBefore !== cleaned) {
-    fixes.push("Virgules finales supprimées");
+  cleaned = cleaned.replace(/,\s*([\]}])/g, "$1");
+  if (trailingBefore !== cleaned) fixes.push("Virgules finales supprimées");
+
+  // Robust repair pass (handles lots of common non-strict JSON issues)
+  try {
+    const repaired = jsonrepair(cleaned);
+    if (repaired !== cleaned) fixes.push("JSON réparé automatiquement");
+    cleaned = repaired;
+  } catch {
+    // keep original cleaned; parse step will display detailed error
   }
 
   return { cleaned, fixes };
@@ -114,83 +85,37 @@ export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [cleaningFixes, setCleaningFixes] = useState<string[]>([]);
  
-  // Try to fix common JSON issues like unescaped quotes in strings
-  const tryFixJson = (input: string): string => {
-    // First, try parsing as-is
-    try {
-      JSON.parse(input);
-      return input;
-    } catch {
-      // Try to fix unescaped quotes within string values
-      // This regex finds string values and escapes internal quotes
-      let fixed = input;
-      
-      // Replace smart/curly quotes with straight quotes first
-      fixed = fixed
-        .replace(/"/g, '"')
-        .replace(/"/g, '"')
-        .replace(/'/g, "'")
-        .replace(/'/g, "'");
-      
-      // Try to fix unescaped quotes in string values
-      // Match content between property value quotes, handling multi-line
-      fixed = fixed.replace(
-        /:\s*"([\s\S]*?)(?<!\\)"\s*([,}\]])/g,
-        (match, content, ending) => {
-          // Escape any unescaped quotes inside the content
-          // But preserve already escaped ones
-          const escapedContent = content
-            .replace(/(?<!\\)"/g, '\\"');
-          return `: "${escapedContent}"${ending}`;
-        }
-      );
-      
-      return fixed;
-    }
-  };
 
   const handleClean = () => {
     if (!jsonInput.trim()) {
       toast.error("Collez d'abord du JSON à nettoyer");
       return;
     }
-    
+
     const { cleaned, fixes } = cleanJsonText(jsonInput);
     setJsonInput(cleaned);
     setCleaningFixes(fixes);
     setParsedItems(null);
     setParseError(null);
-    
-    if (fixes.length > 0) {
-      toast.success(`${fixes.length} correction(s) appliquée(s)`);
-    } else {
-      toast.info("Aucune correction nécessaire");
-    }
+
+    if (fixes.length > 0) toast.success(`${fixes.length} correction(s) appliquée(s)`);
+    else toast.info("Aucune correction nécessaire");
   };
 
   const handleParse = () => {
     setParseError(null);
     setParsedItems(null);
 
-    let input = jsonInput.trim();
-    
-    if (!input) {
+    if (!jsonInput.trim()) {
       setParseError("Veuillez coller du JSON");
       return;
     }
 
-    // Remove surrounding quotes if the JSON was pasted as a string
-    if ((input.startsWith('"') && input.endsWith('"')) || 
-        (input.startsWith("'") && input.endsWith("'"))) {
-      input = input.slice(1, -1);
-      input = input.replace(/\\"/g, '"').replace(/\\'/g, "'");
-    }
-
-    // Try to fix common JSON issues
-    input = tryFixJson(input);
+    const { cleaned, fixes } = cleanJsonText(jsonInput);
+    setCleaningFixes(fixes);
 
     try {
-      const data = JSON.parse(input);
+      const data = JSON.parse(cleaned);
 
       // Support both array and object with items property
       let items: JsonItem[];
@@ -203,9 +128,7 @@ export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
         return;
       }
 
-      // Validate each item has at least a title
       const validItems = items.filter((item) => item.title && typeof item.title === "string");
-
       if (validItems.length === 0) {
         setParseError("Aucun article valide trouvé. Chaque article doit avoir un 'title'");
         return;
@@ -215,7 +138,6 @@ export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
         toast.warning(`${items.length - validItems.length} article(s) ignoré(s) car sans titre`);
       }
 
-      // Normalize items: map "paragraphe" to "content_md" and clean empty strings
       const normalizedItems = validItems.map((item) => ({
         ...item,
         content_md: item.content_md || item.paragraphe || undefined,
@@ -225,11 +147,10 @@ export function JsonImport({ open, onOpenChange, onImport }: JsonImportProps) {
       }));
 
       setParsedItems(normalizedItems);
-    } catch (e) {
+    } catch (e: any) {
+      const msg = typeof e?.message === "string" ? e.message : "Erreur JSON";
+      setParseError(`JSON invalide: ${msg}`);
       console.error("JSON parse error:", e);
-      setParseError(
-        'JSON invalide. Vérifiez que les guillemets dans le texte sont échappés (ex: \\"texte\\") ou utilisez des apostrophes.'
-      );
     }
   };
  
