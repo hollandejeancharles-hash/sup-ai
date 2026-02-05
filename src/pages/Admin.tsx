@@ -13,7 +13,8 @@ import {
   Calendar,
   ChevronRight,
   GripVertical,
-   FileJson,
+  FileJson,
+  AlignLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,8 @@ import {
   type Item,
 } from "@/hooks/useDigests";
 import { ItemForm } from "@/components/admin/ItemForm";
- import { JsonImport } from "@/components/admin/JsonImport";
+import { JsonImport } from "@/components/admin/JsonImport";
+import { TextImport } from "@/components/admin/TextImport";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -47,7 +49,8 @@ export default function Admin() {
     new Date().toISOString().split("T")[0]
   );
   const [showNewDigest, setShowNewDigest] = useState(false);
-   const [showJsonImport, setShowJsonImport] = useState(false);
+  const [showJsonImport, setShowJsonImport] = useState(false);
+  const [showTextImport, setShowTextImport] = useState(false);
 
   // Queries
   const { data: digests, isLoading: loadingDigests } = useDigests();
@@ -334,28 +337,36 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Add Article Button */}
-               <div className="flex gap-3">
-                 <Button
-                   onClick={() => {
-                     setEditingItem(null);
-                     setShowItemForm(true);
-                   }}
-                   variant="outline"
-                   className="flex-1 h-14 rounded-xl border-dashed border-2"
-                 >
-                   <Plus className="mr-2 h-5 w-5" />
-                   Ajouter
-                 </Button>
-                 <Button
-                   onClick={() => setShowJsonImport(true)}
-                   variant="outline"
-                   className="flex-1 h-14 rounded-xl border-dashed border-2"
-                 >
-                   <FileJson className="mr-2 h-5 w-5" />
-                   Import JSON
-                 </Button>
-               </div>
+                {/* Add Article Buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    onClick={() => {
+                      setEditingItem(null);
+                      setShowItemForm(true);
+                    }}
+                    variant="outline"
+                    className="h-14 rounded-xl border-dashed border-2 flex flex-col gap-0.5"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span className="text-xs">Manuel</span>
+                  </Button>
+                  <Button
+                    onClick={() => setShowJsonImport(true)}
+                    variant="outline"
+                    className="h-14 rounded-xl border-dashed border-2 flex flex-col gap-0.5"
+                  >
+                    <FileJson className="h-5 w-5" />
+                    <span className="text-xs">JSON</span>
+                  </Button>
+                  <Button
+                    onClick={() => setShowTextImport(true)}
+                    variant="outline"
+                    className="h-14 rounded-xl border-dashed border-2 flex flex-col gap-0.5"
+                  >
+                    <AlignLeft className="h-5 w-5" />
+                    <span className="text-xs">Texte</span>
+                  </Button>
+                </div>
 
                 {/* Articles List */}
                 {loadingItems ? (
@@ -444,6 +455,13 @@ export default function Admin() {
                <JsonImport
                  open={showJsonImport}
                  onOpenChange={setShowJsonImport}
+                 onImport={handleJsonImport}
+               />
+               
+               {/* Text Import Dialog */}
+               <TextImport
+                 open={showTextImport}
+                 onOpenChange={setShowTextImport}
                  onImport={handleJsonImport}
                />
               </>
