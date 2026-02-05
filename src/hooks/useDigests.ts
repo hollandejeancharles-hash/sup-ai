@@ -97,11 +97,76 @@ export function useLatestItems() {
       if (digestError) throw digestError;
       if (!digest) return [];
 
-      // Then get items for that digest
+      // Then get published items for that digest
       const { data, error } = await supabase
         .from("items")
         .select("*")
         .eq("digest_id", digest.id)
+        .eq("is_published", true)
+        .order("rank", { ascending: true });
+
+      if (error) throw error;
+      return data as Item[];
+    },
+  });
+}
+
+// Fetch breaking news items (for carousel)
+export function useBreakingItems() {
+  return useQuery({
+    queryKey: ["items", "breaking"],
+    queryFn: async () => {
+      // Get latest published digest
+      const { data: digest, error: digestError } = await supabase
+        .from("digests")
+        .select("id")
+        .not("published_at", "is", null)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (digestError) throw digestError;
+      if (!digest) return [];
+
+      // Get breaking items
+      const { data, error } = await supabase
+        .from("items")
+        .select("*")
+        .eq("digest_id", digest.id)
+        .eq("is_published", true)
+        .eq("is_breaking", true)
+        .order("rank", { ascending: true });
+
+      if (error) throw error;
+      return data as Item[];
+    },
+  });
+}
+
+// Fetch regular (non-breaking) items (for feed)
+export function useRegularItems() {
+  return useQuery({
+    queryKey: ["items", "regular"],
+    queryFn: async () => {
+      // Get latest published digest
+      const { data: digest, error: digestError } = await supabase
+        .from("digests")
+        .select("id")
+        .not("published_at", "is", null)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (digestError) throw digestError;
+      if (!digest) return [];
+
+      // Get regular (non-breaking) items
+      const { data, error } = await supabase
+        .from("items")
+        .select("*")
+        .eq("digest_id", digest.id)
+        .eq("is_published", true)
+        .eq("is_breaking", false)
         .order("rank", { ascending: true });
 
       if (error) throw error;
@@ -322,8 +387,39 @@ export function useReorderItems() {
       if (digestId) {
         queryClient.invalidateQueries({ queryKey: ["items", digestId] });
         queryClient.invalidateQueries({ queryKey: ["items", "latest"] });
+        queryClient.invalidateQueries({ queryKey: ["items", "breaking"] });
+        queryClient.invalidateQueries({ queryKey: ["items", "regular"] });
       }
       toast.success("Ordre mis à jour");
+    },
+    onError: (error) => {
+      toast.error("Erreur: " + error.message);
+    },
+  });
+}
+
+// Toggle item publish status
+export function useToggleItemPublish() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, isPublished }: { id: string; isPublished: boolean }) => {
+      const { data, error } = await supabase
+        .from("items")
+        .update({ is_published: isPublished })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Item;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["items", data.digest_id] });
+      queryClient.invalidateQueries({ queryKey: ["items", "latest"] });
+      queryClient.invalidateQueries({ queryKey: ["items", "breaking"] });
+      queryClient.invalidateQueries({ queryKey: ["items", "regular"] });
+      toast.success(data.is_published ? "Article publié" : "Article masqué");
     },
     onError: (error) => {
       toast.error("Erreur: " + error.message);

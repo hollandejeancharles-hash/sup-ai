@@ -148,6 +148,8 @@ export type Database = {
           digest_id: string
           id: string
           image_url: string | null
+          is_breaking: boolean
+          is_published: boolean
           rank: number
           read_time_minutes: number | null
           snippet: string | null
@@ -163,6 +165,8 @@ export type Database = {
           digest_id: string
           id?: string
           image_url?: string | null
+          is_breaking?: boolean
+          is_published?: boolean
           rank?: number
           read_time_minutes?: number | null
           snippet?: string | null
@@ -178,6 +182,8 @@ export type Database = {
           digest_id?: string
           id?: string
           image_url?: string | null
+          is_breaking?: boolean
+          is_published?: boolean
           rank?: number
           read_time_minutes?: number | null
           snippet?: string | null
