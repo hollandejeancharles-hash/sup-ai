@@ -32,6 +32,68 @@ interface JsonImportProps {
   onImport: (items: JsonItem[]) => Promise<void>;
 }
 
+// Escape unescaped quotes inside JSON string values
+const escapeQuotesInStrings = (input: string): { result: string; fixed: boolean } => {
+  let fixed = false;
+  let result = "";
+  let inString = false;
+  let i = 0;
+
+  while (i < input.length) {
+    const char = input[i];
+    const nextChar = input[i + 1];
+
+    if (!inString) {
+      // Look for string start
+      if (char === '"') {
+        inString = true;
+        result += char;
+      } else {
+        result += char;
+      }
+      i++;
+    } else {
+      // Inside a string
+      if (char === "\\") {
+        // Escaped character - copy both chars
+        result += char + (nextChar || "");
+        i += 2;
+      } else if (char === '"') {
+        // Check if this quote ends the string or is an unescaped quote in the middle
+        // Peek ahead: if next non-whitespace is not a JSON delimiter, it's likely unescaped
+        const afterQuote = input.slice(i + 1);
+        const trimmedAfter = afterQuote.trimStart();
+        const firstCharAfter = trimmedAfter[0];
+        
+        // Valid JSON after a closing quote: , } ] : or end of string
+        const isValidEnding = !firstCharAfter || /^[,}\]:]/.test(firstCharAfter);
+        
+        if (isValidEnding) {
+          // This is a proper closing quote
+          inString = false;
+          result += char;
+        } else {
+          // This quote is inside the string value - escape it
+          result += '\\"';
+          fixed = true;
+        }
+        i++;
+      } else if (char === "\n" || char === "\r") {
+        // Newline inside string should be escaped
+        result += "\\n";
+        if (char === "\r" && nextChar === "\n") i++; // skip \r\n as one
+        i++;
+        fixed = true;
+      } else {
+        result += char;
+        i++;
+      }
+    }
+  }
+
+  return { result, fixed };
+};
+
 // Clean and fix common JSON issues
 const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
   const fixes: string[] = [];
@@ -64,8 +126,8 @@ const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
   // Replace smart/curly quotes with straight quotes
   const smartQuotesBefore = cleaned;
   cleaned = cleaned
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
     .replace(/«/g, '"')
     .replace(/»/g, '"');
   if (smartQuotesBefore !== cleaned) fixes.push("Guillemets typographiques convertis");
@@ -79,6 +141,13 @@ const cleanJsonText = (input: string): { cleaned: string; fixes: string[] } => {
   const trailingBefore = cleaned;
   cleaned = cleaned.replace(/,\s*([\]}])/g, "$1");
   if (trailingBefore !== cleaned) fixes.push("Virgules finales supprimées");
+
+  // Escape unescaped quotes inside string values
+  const { result: quotesEscaped, fixed: quotesFixed } = escapeQuotesInStrings(cleaned);
+  if (quotesFixed) {
+    cleaned = quotesEscaped;
+    fixes.push("Guillemets échappés automatiquement");
+  }
 
   // Robust repair pass (handles lots of common non-strict JSON issues)
   try {
