@@ -6,7 +6,8 @@ import { useProtectedAction } from "@/hooks/useProtectedAction";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Item } from "@/hooks/useDigests";
+ import type { Item } from "@/hooks/useDigests";
+ import { ReactionBar } from "@/components/reactions/ReactionBar";
 
 // Extract YouTube embed URL
 function getYouTubeEmbedUrl(url: string): string | null {
@@ -277,7 +278,15 @@ export default function Article() {
             )}
           </div>
 
-          {/* Source Link */}
+           {/* Reactions */}
+           <div className="py-6 border-t border-hairline">
+             <p className="text-meta font-medium text-muted-foreground mb-3">
+               Qu'en pensez-vous ?
+             </p>
+             <ReactionBar itemId={id!} />
+           </div>
+ 
+           {/* Source Link */}
           {item.url && (
             <a
               href={item.url}
